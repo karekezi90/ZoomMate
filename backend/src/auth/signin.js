@@ -34,6 +34,7 @@ export const handler = async (event) => {
       refreshToken: tokens.RefreshToken,
       expiresIn: tokens.ExpiresIn,
       tokenType: tokens.TokenType,
+      issuedAt: Date.now()
     })
   } catch (err) {
     return toHttpError(err)

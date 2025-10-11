@@ -1,10 +1,11 @@
 import axios from 'axios'
 import { getBaseAPI, getStage } from '../../auth/_utils.js'
 
-export const baseAPI = await getBaseAPI()
-
+const API = await getBaseAPI()
 const stage = await getStage()
 export const isProd = stage === 'prod' || stage === 'production' 
+
+export const baseAPI = `${API}/${stage}`
 
 export const correctPayload = {
     email: 'sample@example.com',

@@ -8,7 +8,11 @@ export const cognito = new CognitoIdentityProviderClient({
 
 export const json = (statusCode, data) => ({
   statusCode,
-  headers: { 'content-type': 'application/json' },
+  headers: { 
+    'content-type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Credentials': 'false',
+  },
   body: JSON.stringify(data),
 })
 
@@ -59,7 +63,7 @@ export const toHttpError = (err) => {
 export const getBaseAPI = async () => {
   const region = process.env.APP_REGION || 'ap-southeast-2'
   const ssm = new SSMClient({ region })
-  const cmd = new GetParameterCommand({ Name: '/hotelApp/baseAPI' })
+  const cmd = new GetParameterCommand({ Name: '/ZoomMate/baseAPI' })
   const { Parameter } = await ssm.send(cmd)
   return Parameter.Value
 }
@@ -67,7 +71,15 @@ export const getBaseAPI = async () => {
 export const getStage = async () => {
   const region = process.env.APP_REGION || 'ap-southeast-2'
   const ssm = new SSMClient({ region })
-  const cmd = new GetParameterCommand({ Name: '/hotelApp/stage' })
+  const cmd = new GetParameterCommand({ Name: '/ZoomMate/stage' })
+  const { Parameter } = await ssm.send(cmd)
+  return Parameter.Value
+}
+
+export const getUsersTableName = async () => {
+  const region = process.env.APP_REGION || 'ap-southeast-2'
+  const ssm = new SSMClient({ region })
+  const cmd = new GetParameterCommand({ Name: '/ZoomMate/usersTable' })
   const { Parameter } = await ssm.send(cmd)
   return Parameter.Value
 }

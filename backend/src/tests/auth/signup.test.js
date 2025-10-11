@@ -1,13 +1,10 @@
 import axios from 'axios'
 import { describe, it, expect } from 'vitest'
-import { handler as signup } from '../../auth/signup.js'
-import { getBaseAPI, getStage } from '../../auth/_utils.js'
 import { 
     isProd,
     baseAPI,
     correctPayload, 
     payloadWithoutEmail,
-    payloadWithoutPassword,
     payloadWithInvalidEmail,
     payloadWithInvalidPassword,
 } from './testingData.js'

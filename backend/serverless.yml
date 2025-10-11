@@ -33,6 +33,8 @@ provider:
             - cognito-idp:ConfirmSignUp
             - cognito-idp:ResendConfirmationCode
             - cognito-idp:InitiateAuth
+            - cognito-idp:GetUser
+            - cognito-idp:DeleteUser
           Resource: "*"
 
         - Effect: Allow
@@ -198,8 +200,10 @@ resources:
         AllowedOAuthScopes: [openid, email, profile]
         SupportedIdentityProviders: [COGNITO]
         CallbackURLs:
+          - https://zoommate.ohabimana.dev/auth/callback
           - http://localhost:5173/auth/callback
         LogoutURLs:
+          - https://zoommate.ohabimana.dev/logout
           - http://localhost:5173/logout
         ExplicitAuthFlows:
           - ALLOW_USER_PASSWORD_AUTH
@@ -226,6 +230,12 @@ resources:
         Name: /ZoomMate/stage
         Type: String
         Value: ${opt:stage, 'dev'}
+    DynamoDBUsersTable:
+      Type: AWS::SSM::Parameter
+      Properties:
+        Name: /ZoomMate/usersTable
+        Type: String
+        Value: !Sub "${self:service}-${sls:stage}-users"
 
     # ===== Ensure API Gateway error responses also include CORS headers ======
     GatewayResponseDefault4XX:

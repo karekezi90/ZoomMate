@@ -46,6 +46,6 @@ describe('delete-self', async () => {
 
         expect(response.status).toBe(200)
         expect(response.data).toHaveProperty('message') 
-        expect(response.data.message).toBe('You have successfully deleted your account!') 
+        expect(response.data.message).toBe('You have successfully deleted your account and profile data.') 
     })
 })
