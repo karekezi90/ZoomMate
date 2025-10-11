@@ -35,6 +35,18 @@ provider:
             - cognito-idp:InitiateAuth
           Resource: "*"
 
+        - Effect: Allow
+          Action:
+            - dynamodb:PutItem
+            - dynamodb:GetItem
+            - dynamodb:Query
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+            - dynamodb:BatchWriteItem
+          Resource: 
+            - !GetAtt UsersTable.Arn
+            - !Sub '${UsersTable.Arn}/index/*'
+
 custom:
   corsConfig: &corsDefaults
     origin: '*'
@@ -104,8 +116,34 @@ functions:
           path: /auth/delete-self
           cors: *corsDefaults
 
+  # ---------- Triggers ----------
+  postConfirm:
+    handler: src/triggers/postConfirm.handler
+
+
 resources:
   Resources:
+    # ===== DynamoDB Users table =====
+    UsersTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:service}-${sls:stage}-users
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: userId
+            AttributeType: S 
+          - AttributeName: email
+            AttributeType: S 
+        KeySchema:
+          - AttributeName: userId
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: EmailIndex
+            Projection: { ProjectionType: ALL }
+            KeySchema:
+              - AttributeName: email
+                KeyType: HASH
+
     # ===== Cognito User Pool =====
     UserPool:
       Type: AWS::Cognito::UserPool
@@ -122,6 +160,15 @@ resources:
             RequireSymbols: false
         LambdaConfig:
           PostConfirmation: !GetAtt PostConfirmLambdaFunction.Arn
+
+    # allow Cognito to call the postConfirm Lambda
+    PostConfirmPermission:
+      Type: AWS::Lambda::Permission
+      Properties:
+        Action: lambda:InvokeFunction
+        FunctionName: !GetAtt PostConfirmLambdaFunction.Arn 
+        Principal: cognito-idp.amazonaws.com
+        SourceArn: !GetAtt UserPool.Arn
     
     # ===== SPA App Client =====
     UserPoolClientSpa:
