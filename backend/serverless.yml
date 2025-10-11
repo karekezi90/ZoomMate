@@ -116,10 +116,24 @@ functions:
           path: /auth/delete-self
           cors: *corsDefaults
 
+  # ---------- Dev-only admin confirm ----------
+  confirmAdmin:
+    handler: src/auth/confirmAdmin.handler
+    environment:
+      USER_POOL_ID: !Ref UserPool
+    iamRoleStatements:
+      - Effect: Allow
+        Action: cognito-idp:AdminConfirmSignUp
+        Resource: !GetAtt UserPool.Arn
+    events:
+      - http: 
+          method: POST
+          path: /auth/confirm-admin
+          cors: *corsDefaults
+
   # ---------- Triggers ----------
   postConfirm:
     handler: src/triggers/postConfirm.handler
-
 
 resources:
   Resources:
@@ -198,6 +212,20 @@ resources:
           AccessToken: minutes
           IdToken: minutes
           RefreshToken: days
+
+    # ===== Systems Manager Params =====
+    ApiBaseSSMParam:
+      Type: AWS::SSM::Parameter
+      Properties:
+        Name: /ZoomMate/baseAPI
+        Type: String
+        Value: !Sub 'https://${ApiGatewayRestApi}.execute-api.${AWS::Region}.amazonaws.com'
+    AppStageSSMParam:
+      Type: AWS::SSM::Parameter
+      Properties:
+        Name: /ZoomMate/stage
+        Type: String
+        Value: ${opt:stage, 'dev'}
 
     # ===== Ensure API Gateway error responses also include CORS headers ======
     GatewayResponseDefault4XX:
