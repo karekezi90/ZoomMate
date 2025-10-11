@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="2000" height="600" viewBox="0 0 2000 600" xmlns="http://www.w3.org/2000/svg">
+
+  <defs>
+    <style>
+      .wordmark { font-family: 'Inter', 'Poppins', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; }
+    </style>
+  </defs>
+
+  <g class="wordmark">
+    <text x="20" y="300" font-size="260" font-weight="800" letter-spacing="1.5"
+          textLength="1960" lengthAdjust="spacingAndGlyphs">
+      <tspan fill="#073A36">Zoom</tspan><tspan fill="#0D6A5A">Mate</tspan>
+    </text>
+    <text x="20" y="440" font-size="64" font-weight="500" fill="#2E7D73" opacity="0.9"
+          textLength="1960" lengthAdjust="spacingAndGlyphs">Meet and connect with like-minded people.</text>
+  </g>
+</svg>

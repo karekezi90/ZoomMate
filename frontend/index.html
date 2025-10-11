@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ZoomMate</title>
+    <link rel="icon" href="/src/assets/zoommate-icon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400500;600;700&display=swap" rel="stylesheet">
+  </head>
+  <body class="bg-gray-50">
+    <script>
+      (function () {
+        try {
+          const saved = localStorage.getItem("theme")
+          const enable = saved ? saved === "dark" : false
+          if (enable) document.documentElement.classList.add("dark")
+        } catch (_) {}
+      })()
+    </script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

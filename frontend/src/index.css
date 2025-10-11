@@ -1,0 +1,93 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base theme surfaces (light + dark) */
+@layer base {
+  html { @apply bg-gray-50 text-gray-900; }
+  html.dark { @apply bg-gray-900 text-gray-100; }
+
+  :focus-visible {
+    /* brand ring in both themes */
+    @apply outline-none ring-2 ring-offset-2 ring-brand-500 dark:ring-brand-400;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-medium shadow-sm transition active:scale-[0.98];
+  }
+  .btn-primary {
+    /* Light & dark states */
+    @apply btn bg-brand-600 text-white hover:bg-brand-700
+           dark:bg-brand-500 dark:hover:bg-brand-600;
+  }
+  .btn-muted {
+    @apply btn bg-gray-100 text-gray-900 hover:bg-gray-200
+           dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700;
+  }
+  .card {
+    @apply rounded-2xl border border-gray-100 bg-white/80 shadow-sm backdrop-blur
+           dark:border-gray-700 dark:bg-gray-800/80;
+  }
+  .hint {
+    @apply text-xs text-gray-500 dark:text-gray-400;
+  }
+
+  /* Base field wrapper + label + hint */
+  .field        { @apply space-y-1; }
+  .field-label  { @apply block text-sm font-medium text-gray-700 dark:text-gray-200; }
+  .field-hint   { @apply text-xs text-gray-500 dark:text-gray-400; }
+
+  /* Input primitives (text/email/password/number/url/tel), textarea, select  */
+  .input, .textarea, .select {
+    @apply w-full rounded-xl border border-gray-200 bg-white/90
+           px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400
+           shadow-sm transition
+           focus:border-brand-500 focus:ring-2 focus:ring-brand-500/50
+           dark:border-gray-700 dark:bg-gray-800/80 dark:text-gray-100
+           dark:placeholder:text-gray-500
+           dark:focus:border-brand-400 dark:focus:ring-brand-400/50;
+  }
+
+  /* Element-specific tweaks */
+  .textarea { @apply min-h-[120px] resize-y; }
+  .select   { @apply pr-8; } /* room for native caret */
+
+  /* Sizes */
+  .input-sm, .select-sm, .textarea-sm { @apply text-xs px-3 py-1.5 rounded-lg; }
+  .input-lg, .select-lg, .textarea-lg { @apply text-base px-4 py-2.5 rounded-2xl; }
+
+  /* States */
+  .input:disabled, .textarea:disabled, .select:disabled {
+    @apply bg-gray-100 text-gray-500 cursor-not-allowed
+           dark:bg-gray-900/50 dark:text-gray-500;
+  }
+  .input[aria-invalid="true"],
+  .textarea[aria-invalid="true"],
+  .select[aria-invalid="true"] {
+    @apply border-red-300 focus:border-red-500 focus:ring-red-500/40
+           dark:border-red-400/40 dark:focus:border-red-400 dark:focus:ring-red-400/40;
+  }
+
+  /* Optional variants */
+  .input-ghost, .textarea-ghost, .select-ghost {
+    @apply border-transparent bg-transparent shadow-none
+           focus:border-brand-500 focus:ring-brand-500/40
+           dark:focus:border-brand-400 dark:focus:ring-brand-400/40;
+  }
+  .input-solid, .textarea-solid, .select-solid {
+    @apply border-transparent bg-gray-100
+           focus:bg-white dark:bg-gray-900/60 dark:focus:bg-gray-800;
+  }
+
+  /* Input with leading/trailing icon support */
+  .input-wrap   { @apply relative; }
+  .input-icon-l { @apply pointer-events-none absolute inset-y-0 left-3 flex items-center; }
+  .input-icon-r { @apply pointer-events-none absolute inset-y-0 right-3 flex items-center; }
+  .input.has-icon-l { @apply pl-10; }
+  .input.has-icon-r { @apply pr-10; }
+
+  /* Error message block */
+  .field-error { @apply mt-1 text-xs text-red-600 dark:text-red-400; }
+}
