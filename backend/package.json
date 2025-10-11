@@ -1,0 +1,22 @@
+{
+    "name": "hotelappp",
+    "version": "1.0.0",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "start": "node app.js",
+        "test": "vitest run tests/index.test.js"
+    },
+    "author": "Olivier Habimana",
+    "dependencies": {
+        "@aws-sdk/client-cognito-identity-provider": "^3.901.0",
+        "@aws-sdk/client-dynamodb": "^3.902.0",
+        "@aws-sdk/client-ssm": "^3.901.0",
+        "axios": "^1.12.2",
+        "dotenv": "^17.2.3"
+    },
+    "devDependencies": {
+        "serverless-domain-manager": "^8.0.0",
+        "vitest": "^3.2.4"
+    }
+}

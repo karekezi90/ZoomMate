@@ -1,0 +1,184 @@
+org: remoteitall
+app: zoommate
+service: ZoomMate
+
+provider:
+  name: aws
+  runtime: nodejs22.x
+  stage: ${opt:stage, 'dev'}
+  region: ${opt:region, 'ap-southeast-2'}
+  apiGateway:
+    shouldStartNameWithService: true
+  logs: 
+    restApi: true
+  tracing:
+    lambda: true
+    apiGateway: true
+  logRetentionInDays: 14
+
+  # 👉 Provider-level env
+  environment:
+    STAGE: ${opt:stage, 'dev'}
+    APP_REGION: ${self:provider.region}
+    USERS_TABLE: !Ref UsersTable
+    API_BASE: !Sub 'https://${ApiGatewayRestApi}.execute-api.${self:provider.region}.amazonaws.com'
+
+  # 👉 Provider-level IAM:
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - cognito-idp:SignUp
+            - cognito-idp:ConfirmSignUp
+            - cognito-idp:ResendConfirmationCode
+            - cognito-idp:InitiateAuth
+          Resource: "*"
+
+custom:
+  corsConfig: &corsDefaults
+    origin: '*'
+    headers:
+      - Content-Type
+      - X-Amz-Date
+      - Authorization
+      - X-Api-Key
+    allowCredentials: false
+    maxAge: 86400
+
+functions:
+  # ---------- Auth HTTP endpoints ----------
+  signup:
+    handler: src/auth/signup.handler
+    environment:
+      USER_POOL_CLIENT_ID: !Ref UserPoolClientSpa
+    events:
+      - http: 
+          method: POST
+          path: /auth/signup
+          cors: *corsDefaults 
+
+  confirmSignup:
+    handler: src/auth/confirmSignup.handler
+    environment:
+      USER_POOL_CLIENT_ID: !Ref UserPoolClientSpa
+    events:
+      - http: 
+          method: POST
+          path: /auth/confirm
+          cors: *corsDefaults
+
+  resendCode:
+    handler: src/auth/resendCode.handler
+    environment:
+      USER_POOL_CLIENT_ID: !Ref UserPoolClientSpa
+    events:
+      - http: 
+          method: POST
+          path: /auth/resend
+          cors: *corsDefaults
+
+  signin:
+    handler: src/auth/signin.handler
+    environment:
+      USER_POOL_CLIENT_ID: !Ref UserPoolClientSpa
+    events:
+      - http: 
+          method: POST
+          path: /auth/signin
+          cors: *corsDefaults
+  
+  signout:
+    handler: src/auth/signout.handler
+    events: 
+      - http: 
+          method: POST
+          path: /auth/signout
+          cors: *corsDefaults
+  
+  delete:
+    handler: src/auth/deleteSelf.handler
+    events:
+      - http:
+          method: POST
+          path: /auth/delete-self
+          cors: *corsDefaults
+
+resources:
+  Resources:
+    # ===== Cognito User Pool =====
+    UserPool:
+      Type: AWS::Cognito::UserPool
+      Properties:
+        UserPoolName: ${self:service}-${sls:stage}-users
+        AutoVerifiedAttributes: [email]
+        UsernameAttributes: [email]
+        Policies:
+          PasswordPolicy:
+            MinimumLength: 8
+            RequireLowercase: true
+            RequireUppercase: true
+            RequireNumbers: true
+            RequireSymbols: false
+        LambdaConfig:
+          PostConfirmation: !GetAtt PostConfirmLambdaFunction.Arn
+    
+    # ===== SPA App Client =====
+    UserPoolClientSpa:
+      Type: AWS::Cognito::UserPoolClient
+      Properties: 
+        UserPoolId: !Ref UserPool
+        ClientName: ${self:service}-${sls:stage}-spa
+        GenerateSecret: false                      
+        PreventUserExistenceErrors: ENABLED
+        # OAuth (for browser PKCE flows if you use Hosted UI)
+        AllowedOAuthFlowsUserPoolClient: true
+        AllowedOAuthFlows: [code]
+        AllowedOAuthScopes: [openid, email, profile]
+        SupportedIdentityProviders: [COGNITO]
+        CallbackURLs:
+          - http://localhost:5173/auth/callback
+        LogoutURLs:
+          - http://localhost:5173/logout
+        ExplicitAuthFlows:
+          - ALLOW_USER_PASSWORD_AUTH
+          - ALLOW_USER_SRP_AUTH
+          - ALLOW_REFRESH_TOKEN_AUTH
+        AccessTokenValidity: 60
+        IdTokenValidity: 60
+        RefreshTokenValidity: 30
+        TokenValidityUnits:
+          AccessToken: minutes
+          IdToken: minutes
+          RefreshToken: days
+
+    # ===== Ensure API Gateway error responses also include CORS headers ======
+    GatewayResponseDefault4XX:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        RestApiId: { Ref: ApiGatewayRestApi }
+        ResponseType: DEFAULT_4XX
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+          gatewayresponse.header.Access-Control-Allow-Methods: "'GET,POST,PUT,PATCH,DELETE,OPTIONS'"
+    GatewayResponseDefault5XX:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        RestApiId: { Ref: ApiGatewayRestApi }
+        ResponseType: DEFAULT_5XX
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+          gatewayresponse.header.Access-Control-Allow-Methods: "'GET,POST,PUT,PATCH,DELETE,OPTIONS'"
+
+  Outputs:
+    UserPoolId:
+      Value: !Ref UserPool
+    UserPoolClientId:
+      Value: !Ref UserPoolClientSpa
+    UserPoolArn:
+      Value: !GetAtt UserPool.Arn
+    ApiBase:
+      Value: !Sub 'https://${ApiGatewayRestApi}.execute-api.${AWS::Region}.amazonaws.com'
+
