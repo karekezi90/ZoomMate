@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { getBaseAPI, getStage } from '../../auth/_utils.js'
+import { getBaseAPI, getStage } from '../../_utils.js'
 
 const API = await getBaseAPI()
 const stage = await getStage()

@@ -6,7 +6,7 @@ import {
     cognito,
     parseBody, 
     toHttpError 
-} from './_utils.js'
+} from '../_utils.js'
 
 export const handler = async (event) => {
   const body = parseBody(event)

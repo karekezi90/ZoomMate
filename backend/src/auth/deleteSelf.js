@@ -11,7 +11,7 @@ import {
     cognito,
     parseBody, 
     toHttpError 
-} from './_utils.js'
+} from '../_utils.js'
 
 const ddb = new DynamoDBClient({})
 

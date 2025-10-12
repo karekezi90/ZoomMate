@@ -21,7 +21,8 @@ provider:
     STAGE: ${opt:stage, 'dev'}
     APP_REGION: ${self:provider.region}
     USERS_TABLE: !Ref UsersTable
-    API_BASE: !Sub 'https://${ApiGatewayRestApi}.execute-api.${self:provider.region}.amazonaws.com'
+    API_BASE: ${cf:${self:service}-${sls:stage}.ServiceEndpoint, 'http://localhost:3000'}
+    # API_BASE: !Sub 'https://${ApiGatewayRestApi}.execute-api.${self:provider.region}.amazonaws.com'
 
   # 👉 Provider-level IAM:
   iam:
@@ -42,6 +43,7 @@ provider:
             - dynamodb:PutItem
             - dynamodb:GetItem
             - dynamodb:Query
+            - dynamodb:Scan
             - dynamodb:UpdateItem
             - dynamodb:DeleteItem
             - dynamodb:BatchWriteItem
@@ -61,7 +63,7 @@ custom:
     maxAge: 86400
 
 functions:
-  # ---------- Auth HTTP endpoints ----------
+  # ---------- Auth endpoints ----------
   signup:
     handler: src/auth/signup.handler
     environment:
@@ -71,7 +73,6 @@ functions:
           method: POST
           path: /auth/signup
           cors: *corsDefaults 
-
   confirmSignup:
     handler: src/auth/confirmSignup.handler
     environment:
@@ -81,7 +82,6 @@ functions:
           method: POST
           path: /auth/confirm
           cors: *corsDefaults
-
   resendCode:
     handler: src/auth/resendCode.handler
     environment:
@@ -91,7 +91,6 @@ functions:
           method: POST
           path: /auth/resend
           cors: *corsDefaults
-
   signin:
     handler: src/auth/signin.handler
     environment:
@@ -101,7 +100,6 @@ functions:
           method: POST
           path: /auth/signin
           cors: *corsDefaults
-  
   signout:
     handler: src/auth/signout.handler
     events: 
@@ -109,13 +107,42 @@ functions:
           method: POST
           path: /auth/signout
           cors: *corsDefaults
-  
   delete:
     handler: src/auth/deleteSelf.handler
     events:
       - http:
           method: POST
           path: /auth/delete-self
+          cors: *corsDefaults
+
+  # ---------- Users endpoints ----------
+  searchUsers: 
+    handler: src/users/searchUsers.handler
+    events:
+      - http:
+          path: /users/search
+          method: POST
+          cors: *corsDefaults
+  getUser: 
+    handler: src/users/getUser.handler
+    events:
+      - http:
+          path: /users/me
+          method: GET
+          cors: *corsDefaults
+  getUsers: 
+    handler: src/users/getUsers.handler
+    events:
+      - http:
+          path: /users
+          method: GET
+          cors: *corsDefaults
+  updateUser: 
+    handler: src/users/updateUser.handler
+    events:
+      - http:
+          path: /users/me
+          method: PUT
           cors: *corsDefaults
 
   # ---------- Dev-only admin confirm ----------
