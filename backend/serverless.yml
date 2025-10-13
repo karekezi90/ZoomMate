@@ -21,6 +21,11 @@ provider:
     STAGE: ${opt:stage, 'dev'}
     APP_REGION: ${self:provider.region}
     USERS_TABLE: !Ref UsersTable
+    GROUPS_TABLE: !Ref GroupsTable
+    GROUP_MEMBERS_TABLE: !Ref GroupMembersTable
+    EVENTS_TABLE: !Ref EventsTable
+    EVENT_ATTENDEES_TABLE: !Ref EventAttendeesTable
+
     API_BASE: ${cf:${self:service}-${sls:stage}.ServiceEndpoint, 'http://localhost:3000'}
     # API_BASE: !Sub 'https://${ApiGatewayRestApi}.execute-api.${self:provider.region}.amazonaws.com'
 
@@ -46,10 +51,17 @@ provider:
             - dynamodb:Scan
             - dynamodb:UpdateItem
             - dynamodb:DeleteItem
-            - dynamodb:BatchWriteItem
           Resource: 
             - !GetAtt UsersTable.Arn
             - !Sub '${UsersTable.Arn}/index/*'
+            - !GetAtt GroupsTable.Arn
+            - !Sub '${GroupsTable.Arn}/index/*'
+            - !GetAtt GroupMembersTable.Arn
+            - !Sub '${GroupMembersTable.Arn}/index/*'
+            - !GetAtt EventsTable.Arn
+            - !Sub '${EventsTable.Arn}/index/*'
+            - !GetAtt EventAttendeesTable.Arn
+            - !Sub '${EventAttendeesTable.Arn}/index/*'
 
 custom:
   corsConfig: &corsDefaults
@@ -115,7 +127,7 @@ functions:
           path: /auth/delete-self
           cors: *corsDefaults
 
-  # ---------- Users endpoints ----------
+  # ---------- User endpoints ----------
   searchUsers: 
     handler: src/users/searchUsers.handler
     events:
@@ -160,6 +172,169 @@ functions:
           path: /auth/confirm-admin
           cors: *corsDefaults
 
+  # ---------- Group endpoints ----------
+  createGroup:
+    handler: src/groups/createGroup.handler
+    memorySize: 256
+    timeout: 10
+    events:
+      - http:
+          path: groups
+          method: POST
+          cors: *corsDefaults
+  getGroup:
+    handler: src/groups/getGroup.handler
+    memorySize: 256
+    timeout: 10
+    events:
+      - http:
+          path: groups/{groupId}
+          method: GET
+          cors: *corsDefaults
+  updateGroup:
+    handler: src/groups/updateGroup.handler
+    memorySize: 256
+    timeout: 10
+    events:
+      - http:
+          path: groups/{groupId}
+          method: PUT
+          cors: *corsDefaults
+  deleteGroup:
+    handler: src/groups/deleteGroup.handler
+    memorySize: 256
+    timeout: 10
+    events:
+      - http:
+          path: groups/{groupId}
+          method: DELETE
+          cors: *corsDefaults
+  listGroups:
+    handler: src/groups/listGroups.handler
+    memorySize: 256
+    timeout: 10
+    events:
+      - http:
+          path: groups
+          method: GET
+          cors: *corsDefaults
+  
+  # ---------- GroupMember endpoints ----------
+  addMember:
+    handler: src/groupMembers/addMember.handler
+    description: Join a group (self)
+    memorySize: 256
+    timeout: 10
+    events:
+      - http:
+          path: groups/{groupId}/members
+          method: POST
+          cors: *corsDefaults
+  removeMember:
+    handler: src/groupMembers/removeMember.handler
+    description: Leave a group (self)
+    memorySize: 256
+    timeout: 10
+    events:
+      - http:
+          path: groups/{groupId}/members/{userId}
+          method: DELETE
+          cors: *corsDefaults
+  listMembers:
+    handler: src/groupMembers/listMembers.handler
+    description: List group members
+    memorySize: 256
+    timeout: 10
+    events:
+      - http:
+          path: groups/{groupId}/members
+          method: GET
+          cors: *corsDefaults
+          
+  # ---------- Event endpoints ----------
+  createEvent:
+    handler: src/events/createEvent.handler
+    description: Create an event in a group
+    memorySize: 256
+    timeout: 10
+    events:
+      - http:
+          path: groups/{groupId}/events
+          method: POST
+          cors: *corsDefaults
+  getEvent:
+    handler: src/events/getEvent.handler
+    description: Get event details
+    memorySize: 256
+    timeout: 10
+    events:
+      - http:
+          path: events/{eventId}
+          method: GET
+          cors: *corsDefaults
+  updateEvent:
+    handler: src/events/updateEvent.handler
+    description: Update an event (creator only)
+    memorySize: 256
+    timeout: 10
+    events:
+      - http:
+          path: events/{eventId}
+          method: PUT
+          cors: *corsDefaults
+  deleteEvent:
+    handler: src/events/deleteEvent.handler
+    description: DELETE an event (creator only)
+    memorySize: 256
+    timeout: 10
+    events:
+      - http:
+          path: events/{eventId}
+          method: DELETE
+          cors: *corsDefaults
+  listEventsByGroup:
+    handler: src/events/listEventsByGroup.handler
+    description: List events for a group
+    memorySize: 256
+    timeout: 10
+    events:
+      - http:
+          path: groups/{groupId}/events
+          method: GET
+          cors: *corsDefaults
+
+  # ---------- EventAttendee endpoints ----------
+  rsvpEvent:
+    handler: src/eventAttendees/rsvpEvent.handler
+    description: RSVP to an event (self)
+    memorySize: 256
+    timeout: 10
+    events:
+      - http:
+          path: events/{eventId}/attendees
+          method: POST
+          cors: *corsDefaults
+  unrsvpEvent:
+    handler: src/eventAttendees/unrsvpEvent.handler
+    description: Cancel RSVP (self)
+    memorySize: 256
+    timeout: 10
+    events:
+      - http:
+          path: events/{eventId}/attendees/me
+          method: DELETE
+          cors: *corsDefaults
+  listAttendees:
+    handler: src/eventAttendees/listAttendees.handler
+    description: List attendees for an event
+    memorySize: 256
+    timeout: 10
+    events:
+      - http:
+          path: events/{eventId}/attendees
+          method: GET
+          cors: *corsDefaults
+
   # ---------- Triggers ----------
   postConfirm:
     handler: src/triggers/postConfirm.handler
@@ -186,6 +361,100 @@ resources:
             KeySchema:
               - AttributeName: email
                 KeyType: HASH
+
+    # ===== DynamoDB Groups table =====
+    GroupsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:service}-${sls:stage}-groups
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: groupId
+            AttributeType: S
+          - AttributeName: ownerId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: groupId
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: ownerId-index
+            KeySchema:
+              - AttributeName: ownerId
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+    
+    # ===== DynamoDB GroupMembers table =====
+    GroupMembersTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:service}-${sls:stage}-group-members
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: groupId
+            AttributeType: S
+          - AttributeName: userId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: groupId
+            KeyType: HASH
+          - AttributeName: userId
+            KeyType: RANGE
+        GlobalSecondaryIndexes:
+          - IndexName: userId-index
+            KeySchema:
+              - AttributeName: userId
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+
+    # ========== DynamoDB Events table ==========
+    EventsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:service}-${sls:stage}-events
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: eventId
+            AttributeType: S
+          - AttributeName: groupId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: eventId
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          # Used by listEventsByGroup handler
+          - IndexName: groupId-index
+            KeySchema:
+              - AttributeName: groupId
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+    
+    # ========== DynamoDB Event Attendees table ==========
+    EventAttendeesTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:service}-${sls:stage}-events-attendees
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: eventId
+            AttributeType: S
+          - AttributeName: userId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: eventId
+            KeyType: HASH
+          - AttributeName: userId
+            KeyType: RANGE
+        GlobalSecondaryIndexes:
+          # List all events a user has RSVP’d to (optional, handy for "My Events")
+          - IndexName: userId-index
+            KeySchema:
+              - AttributeName: userId
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
 
     # ===== Cognito User Pool =====
     UserPool:

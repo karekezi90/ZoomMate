@@ -89,6 +89,15 @@ export const getAccessToken = event => {
   return null
 }
 
+export const getUserSubFromAuth = async (event) => {
+  const accessToken = getAccessToken(event)
+  if (!accessToken) {
+    return null
+  }
+
+  return await getUserSub(accessToken)
+}
+
 export const getUserSub = async (accessToken) => {
     const res = await cognito.send(new GetUserCommand({ AccessToken: accessToken }))
     const subAttr = res.UserAttributes?.find(a => a.Name === 'sub')
