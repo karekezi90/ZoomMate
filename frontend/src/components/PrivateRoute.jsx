@@ -1,20 +1,20 @@
 import { Navigate, useLocation } from 'react-router-dom'
-import { areTokensExpired } from '../lib/validators'
+import { areTokensExpired } from '../_utitls'
 import { useSelector } from 'react-redux'
 
 const PrivateRoute = ({ children }) => {
-    let isAuthedUser = false
-    const { authenticatedUserData } = useSelector(state => state.auth)
-    if (authenticatedUserData) {
-        const { issuedAt, expiresIn } = authenticatedUserData
-        isAuthedUser = areTokensExpired(issuedAt, expiresIn) ? false : true
-    }
     const location = useLocation()
-
-    if (!isAuthedUser) {
+    
+    const { authenticatedUserData } = useSelector(state => state.auth)
+    if (!authenticatedUserData) {
         return <Navigate to="/login" replace state={{ from: location }} />
     }
-    
+
+    const { issuedAt, expiresIn } = authenticatedUserData
+    if (areTokensExpired(issuedAt, expiresIn)) {
+        return <Navigate to="/login" replace state={{ from: location }} />
+    }
+
     return children
 }
 

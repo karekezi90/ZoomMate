@@ -1,3 +1,10 @@
+export const capitalizeFirstLetter = (str) => {
+    if (str && typeof(str) === 'string') {
+        return str.charAt(0).toUpperCase() + str.slice(1)
+    }
+    return ''
+}
+
 export function isValidEmail(email) {
     return /[^\s@]+@[^\s@]+\.[^\s@]+/.test(String(email).toLowerCase())
 }

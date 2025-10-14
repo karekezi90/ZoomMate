@@ -1,4 +1,4 @@
-import apiClient from "../apiClient"
+import { apiClient } from '../apiClient'
 
 const LOGIN_PATH = '/auth/signin'
 const SIGNUP_PATH = '/auth/signup'

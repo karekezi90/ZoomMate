@@ -5,14 +5,14 @@ import AuthLayout from '../components/AuthLayout'
 import OAuthButtons from '../components/OAuthButtons'
 import TextInput from '../components/TextInput'
 import ErrorMessage from '../components/ErrorMessage'
-import { isValidEmail, validatePassword } from '../lib/validators'
+import { isValidEmail, validatePassword } from '../_utitls'
 import { signup } from '../features/auth/authSlice'
 
 const Signup = () => {
     const navigate = useNavigate()
     const dispatch = useDispatch()
     
-    const { status, error, userAuth } = useSelector(state => state.auth)
+    const { signupStaus, error, userAuth } = useSelector(state => state.auth)
 
     const [errorMessage, setErrorMessage] = useState('')
     const [form, setForm] = useState({
@@ -23,12 +23,12 @@ const Signup = () => {
     const {email, password } = form
 
     useEffect(() => {
-        if (status === 'succeded') {
+        if (signupStaus === 'succeeded') {
             navigate('/verify', { state: { email: userAuth?.delivery?.Destination },  replace: true })
-        } else if (status === 'failed') (
+        } else if (signupStaus === 'failed') (
             setErrorMessage(error)
         )
-    }, [status, navigate])
+    }, [signupStaus, navigate])
 
     const onChange = (e) => {
         const { name, value } = e.target
@@ -78,8 +78,8 @@ const Signup = () => {
                     onChange={onChange} 
                     placeholder='••••••••' autoComplete='new-password' 
                 />
-                <button type='submit' className='btn-primary w-full' disabled={status === 'loading'}>
-                    {status === 'loading' ? 'Creating account…' : 'Sign up'}
+                <button type='submit' className='btn-primary w-full' disabled={signupStaus === 'loading'}>
+                    {signupStaus === 'loading' ? 'Creating account…' : 'Sign up'}
                 </button>
             </form>
 
@@ -88,7 +88,7 @@ const Signup = () => {
             </div>
 
             <OAuthButtons
-                disabled={status === 'loading'}
+                disabled={signupStaus === 'loading'}
                 onGoogle={
                     async () => { }
                 }

@@ -14,7 +14,7 @@ const VerifyCode = () => {
     const [errorMessage, setErrorMessage] = useState('')
     const [info, setInfo] = useState('')
 
-    const { status, error, userAuth } = useSelector(state => state.auth)
+    const { verifyStatus, resendCodeStutus,  error } = useSelector(state => state.auth)
 
     const [form, setForm] = useState({
         email: '',
@@ -33,16 +33,19 @@ const VerifyCode = () => {
     }, [location.state])
 
     useEffect(() => {
-        if (status === 'succeded') {
-            if (userAuth && userAuth?.message === 'Confirmation code resent') {
-                setInfo(`A 6‑digit code is resent to: ${email}.`)
-            } else if (userAuth && userAuth?.message === 'Email verified') {
-                navigate('/login', { replace: true })
-            }
-        } else if (status === 'failed') (
+        if (verifyStatus === 'succeeded') {
+            navigate('/login', { replace: true })
+        }
+
+        if (resendCodeStutus === 'succeeded') {
+            setInfo(`A 6‑digit code is resent to: ${email}.`)
+        }
+
+        if (verifyStatus === 'failed' || resendCodeStutus === 'failed') (
             setErrorMessage(error)
         )
-    }, [status, navigate])
+        // eslint-disable-next-line
+    }, [verifyStatus, resendCodeStutus, navigate])
 
 
     const onSubmit = async (e) => {
@@ -103,15 +106,15 @@ const VerifyCode = () => {
                     label='Verification code' 
                 />
 
-                <button type='submit' className='btn-primary w-full' disabled={status === 'loading'}>
-                    {status === 'loading' ? 'Verifying…' : 'Verify & Continue'}
+                <button type='submit' className='btn-primary w-full' disabled={verifyStatus === 'loading'}>
+                    {verifyStatus === 'loading' ? 'Verifying…' : 'Verify & Continue'}
                 </button>
             </form>
 
             <p className='mt-6 text-center text-sm light:text-gray-600 dark:text-white-600'>
                 <Link to='/signup' className='text-brand-600 hover:underline'>Go back</Link>
                 &nbsp; Didn’t get a code? &nbsp;
-                <a href='#' onClick={handleResendCode} className='text-brand-600 hover:underline'>Resend Code</a>
+                <a href='#' onClick={handleResendCode} className='text-brand-600 hover:underline'>{resendCodeStutus === 'loading' ? 'Resending Code...' : 'Resend Code'}</a>
             </p>
         </AuthLayout>
     )

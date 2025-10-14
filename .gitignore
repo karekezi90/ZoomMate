@@ -5,19 +5,22 @@ yarn-error.log*
 
 # Frontend
 frontend/node_modules/
+frontend/package-lock.json
 frontend/.env
 frontend/.env.*
 frontend/dist/
 frontend/.vite/
-backend/.webpack/
-backend/.serverless/
 coverage/
 
 # Backend
 backend/node_modules/
+backend/src/scripts/
+backend/package-lock.json
 backend/.env
 backend/.env.*
 backend/.vite
+backend/.webpack/
+backend/.serverless/
 
 # Env files (keep secrets out of git)
 .env

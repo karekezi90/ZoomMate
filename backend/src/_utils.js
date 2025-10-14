@@ -129,6 +129,9 @@ export const getUsersTableName = async () => {
 }
 
 export const ALLOWED_FIELDS = [
+    'bio',
+    'firstName',
+    'lastName',
     'gender',
     'pronouns',
     'maritalStatus',

@@ -5,14 +5,14 @@ import AuthLayout from '../components/AuthLayout'
 import OAuthButtons from '../components/OAuthButtons'
 import TextInput from '../components/TextInput'
 import ErrorMessage from '../components/ErrorMessage'
-import { isValidEmail, validatePassword } from '../lib/validators'
+import { isValidEmail, validatePassword } from '../_utitls'
 import { login } from '../features/auth/authSlice'
 
 const Login = () => {
     const navigate = useNavigate()
     const dispatch = useDispatch()
 
-    const { status, error } = useSelector(state => state.auth)
+    const { loginStatus, error } = useSelector(state => state.auth)
 
     const [errorMessage, setErrorMessage] = useState('')
     const [form, setForm] = useState({
@@ -23,12 +23,12 @@ const Login = () => {
     const {email, password } = form
 
     useEffect(() => {
-        if (status === 'succeded') {
+        if (loginStatus === 'succeeded') {
             navigate('/profile', {  replace: true })
-        } else if (status === 'failed') (
+        } if (loginStatus === 'failed') (
             setErrorMessage(error)
         )
-    }, [status, navigate])
+    }, [loginStatus, navigate])
 
     const onChange = (e) => {
         const { name, value } = e.target
@@ -82,9 +82,9 @@ const Login = () => {
                 <button 
                     type='submit' 
                     className='btn-primary w-full' 
-                    disabled={status === 'loading'}
+                    disabled={loginStatus === 'loading'}
                 >
-                    {status === 'loading' ? 'Signing in…' : 'Log in'}
+                    {loginStatus === 'loading' ? 'Signing in…' : 'Log in'}
                 </button>
             </form>
 
@@ -93,7 +93,7 @@ const Login = () => {
             </div>
 
             <OAuthButtons
-                disabled={status === 'loading'}
+                disabled={loginStatus === 'loading'}
                 onGoogle={
                     async () => { }
                 }

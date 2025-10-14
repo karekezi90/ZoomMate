@@ -1,17 +1,30 @@
 import { Link, useNavigate } from 'react-router-dom'
+import { useSelector, useDispatch } from 'react-redux'
 import ThemeToggle from './ThemeToggle'
-import { getSession, logout } from '../lib/auth'
 import lightLogo from '../assets/zoommate-logo-aligned.svg'
 import darkLogo from '../assets/zoommate-logo-dark-aligned.svg'
 import { useTheme } from '../context/ThemeContext'
+import { logout, resetAuth } from '../features/auth/authSlice'
+import { useEffect } from 'react'
 
 const AppHeader = () => {
+    const navigate = useNavigate()
+    const dispatch = useDispatch()
+
+    const { authenticatedUserData, logoutStatus } = useSelector(state => state.auth)
     const { dark } = useTheme()
     const logo = dark ? darkLogo : lightLogo
     
-    const session = getSession()
-    const nav = useNavigate()
-    const email = session?.email
+
+    useEffect(() => {
+        if (logoutStatus === 'succeeded') {
+            dispatch(resetAuth())
+        }
+    }, [logoutStatus])
+
+    const handleLogout = () => {
+        dispatch(logout())
+    }
 
     return (
         <header className='sticky top-0 z-40 border-b border-gray-200 bg-white/80 backdrop-blur dark:border-gray-800 dark:bg-gray-900'>
@@ -27,35 +40,26 @@ const AppHeader = () => {
                         to='/profile' 
                         className='text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white'
                     >
-                        Home
+                        Profile
                     </Link>
                     <Link 
                         to='/account' 
                         className='text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white'
                     >
-                        Account
-                    </Link>
-                    <Link to='/meetings' className='text-gray-400 pointer-events-none'> 
-                        Meetings (soon)
+                        Account Settings
                     </Link>
                 </nav>
 
                 {/* Right: theme toggle + user */}
                 <div className='flex items-center gap-3'>
                     <ThemeToggle />
-                    {email && (
-                        <>
-                            <span className='hidden text-xs text-gray-500 sm:inline'>{email}</span>
+                    {authenticatedUserData && (
                             <button
-                                onClick={()=>{ 
-                                    logout()
-                                    nav('/login', { replace: true })
-                                }}
+                                onClick={handleLogout}
                                 className='btn-muted h-9 px-3'
                             >
-                                Sign out
+                                {logoutStatus === 'loading' ? 'Signing out...' : 'Sign out'}
                             </button>
-                        </>
                     )}
                 </div>
             </div>

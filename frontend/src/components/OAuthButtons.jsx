@@ -1,4 +1,4 @@
-export default function OAuthButtons({ onGoogle, onFacebook, disabled }) {
+const OAuthButtons = ({ onGoogle, onFacebook, disabled }) => {
     return (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <button type="button" onClick={onGoogle} disabled={disabled} className="btn-muted w-full">
@@ -16,3 +16,5 @@ export default function OAuthButtons({ onGoogle, onFacebook, disabled }) {
         </div>
     )
 }
+
+export default OAuthButtons

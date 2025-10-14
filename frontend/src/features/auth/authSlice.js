@@ -8,7 +8,12 @@ const authenticatedUserData = JSON.parse(localStorage.getItem('auth'))
 
 const initialState = {
     userAuth: null,
-    status: 'idle',
+    signupStaus: 'idle',
+    verifyStatus: 'idle',
+    resendCodeStutus: 'idle',
+    loginStatus: 'idle',
+    logoutStatus: 'idle',
+    deleteStatus: 'idle',
     error: null,
     authenticatedUserData: authenticatedUserData ?? null
 }
@@ -20,7 +25,6 @@ export const signup = createAsyncThunk(
             const response =  await authService.signup(payload)
             return response.data
         } catch (error) {
-            console.log('RESPONSE', error)
             const message = (
                 error.response && error.response.data && error.response.data.error
             ) || error.message || error.toString()
@@ -81,9 +85,10 @@ export const login = createAsyncThunk(
 
 export const deleteSelf = createAsyncThunk(
     'auth/deleteSelf',
-    async (payload, thunkAPI) => {
+    async (_, thunkAPI) => {
         try {
-            const response = await authService.deleteSelf(payload)
+            const accessToken = thunkAPI.getState().auth.authenticatedUserData.accessToken
+            const response = await authService.deleteSelf({ accessToken: accessToken})
             localStorage.removeItem('auth')
             return response.data
         } catch (error) {
@@ -98,9 +103,10 @@ export const deleteSelf = createAsyncThunk(
 
 export const logout = createAsyncThunk(
     'auth/logout',
-    async (payload, thunkAPI) => {
+    async (_, thunkAPI) => {
         try {
-            const response = await authService.logout(payload)
+            const accessToken = thunkAPI.getState().auth.authenticatedUserData.accessToken
+            const response = await authService.logout({ accessToken: accessToken })
             localStorage.removeItem('auth')
             return response.data
         } catch (error) {
@@ -118,107 +124,112 @@ export const authSlice = createSlice({
     initialState,
     reducers: {
         resetAuth: (state) => {
-            state.status = 'idle'
+            state.signupStaus = 'idle'
+            state.verifyStatus = 'idle'
+            state.resendCodeStutus = 'idle'
+            state.loginStatus = 'idle'
+            state.logoutStatus = 'idle'
+            state.deleteStatus = 'idle'
             state.error = null
             state.userAuth = null
             state.authenticatedUserData = null
-        }
+        },
     },
     extraReducers: (builder) => {
         builder
             .addCase(signup.pending, (state) => {
-                state.status = 'loading'
+                state.signupStaus = 'loading'
                 state.error = null
                 state.userAuth = null
             })
             .addCase(signup.fulfilled, (state, action) => {
-                state.status = 'succeded'
+                state.signupStaus = 'succeeded'
                 state.error = null
                 state.userAuth = action.payload
             })
             .addCase(signup.rejected, (state, action) => {
-                state.status = 'failed'
+                state.signupStaus = 'failed'
                 state.error = action.payload || 'Signup failed' 
                 state.userAuth = null
             })
 
             .addCase(confirm.pending, (state) => {
-                state.status = 'loading'
+                state.verifyStatus = 'loading'
                 state.error = null
                 state.userAuth = null
             })
             .addCase(confirm.fulfilled, (state, action) => {
-                state.status = 'succeded'
+                state.verifyStatus = 'succeeded'
                 state.error = null
                 state.userAuth = action.payload
             })
             .addCase(confirm.rejected, (state, action) => {
-                state.status = 'failed'
+                state.verifyStatus = 'failed'
                 state.error = action.payload || 'Confirm Signup failed' 
                 state.userAuth = null
             })
 
             .addCase(resendCode.pending, (state) => {
-                state.status = 'loading'
+                state.resendCodeStutus = 'loading'
                 state.error = null
                 state.userAuth = null
             })
             .addCase(resendCode.fulfilled, (state, action) => {
-                state.status = 'succeded'
+                state.resendCodeStutus = 'succeeded'
                 state.error = null
                 state.userAuth = action.payload
             })
             .addCase(resendCode.rejected, (state, action) => {
-                state.status = 'failed'
+                state.resendCodeStutus = 'failed'
                 state.error = action.payload || 'Resend Code failed' 
                 state.userAuth = null
             })
 
             .addCase(login.pending, (state) => {
-                state.status = 'loading'
+                state.loginStatus = 'loading'
                 state.error = null
                 state.userAuth = null
             })
             .addCase(login.fulfilled, (state, action) => {
-                state.status = 'succeded'
+                state.loginStatus = 'succeeded'
                 state.error = null
                 state.userAuth = action.payload
                 state.authenticatedUserData = action.payload
             })
             .addCase(login.rejected, (state, action) => {
-                state.status = 'failed'
+                state.loginStatus = 'failed'
                 state.error = action.payload || 'Login failed' 
                 state.userAuth = null
             })
 
             .addCase(deleteSelf.pending, (state) => {
-                state.status = 'loading'
+                state.deleteStatus = 'loading'
                 state.error = null
                 state.userAuth = null
             })
             .addCase(deleteSelf.fulfilled, (state, action) => {
-                state.status = 'succeded'
+                state.deleteStatus = 'succeeded'
                 state.error = null
                 state.userAuth = action.payload
             })
             .addCase(deleteSelf.rejected, (state, action) => {
-                state.status = 'failed'
+                state.deleteStatus = 'failed'
                 state.error = action.payload || 'Delete self failed' 
                 state.userAuth = null
             })
-
+            
             .addCase(logout.pending, (state) => {
-                state.status = 'loading'
+                state.logoutStatus = 'loading'
                 state.error = null
                 state.userAuth = null
             })
             .addCase(logout.fulfilled, (state, action) => {
-                state.status = 'succeded'
+                state.logoutStatus = 'succeeded'
                 state.error = null
                 state.userAuth = action.payload
             })
             .addCase(logout.rejected, (state, action) => {
-                state.status = 'failed'
+                state.logoutStatus = 'failed'
                 state.error = action.payload || 'Logout failed' 
                 state.userAuth = null
             })
