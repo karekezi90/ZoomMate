@@ -1,0 +1,142 @@
+name: Deploy CI
+
+on:
+  push: 
+    branches:
+      - main
+env:
+  S3_BUCKET: ${{ secrets.S3_BUCKET }}
+  SERVERLESS_ACCESS_KEY: ${{ secrets.SERVERLESS_ACCESS_KEY }}
+  CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} 
+
+permissions:
+  id-token: write         
+  contents: read
+
+jobs:
+  dev-backend-deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}    
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Deploy dev stage
+        run: npx serverless deploy --stage dev
+
+      - name: Test all endpoints of deployed dev
+        run: npm test
+
+  prod-backend-deploy:
+    needs: dev-backend-deploy
+    if: success() && github.ref == 'refs/heads/main' 
+
+    runs-on: ubuntu-lateset
+    
+    defaults:
+      run:
+        working-directory: backend
+        
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Deploy to production stage
+        run: npx serverless deploy --stage prod
+
+  frontend-build-and-deploy:
+    needs: prod-backend-deploy
+    if: success() && github.ref == 'refs/heads/main' 
+
+    runs-on: ubuntu-latest
+
+    defaults: 
+      run: 
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+
+      - name: Configure AWS credentials (keys)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      
+      - name: Read base API from SSM
+        id: read_ssm
+        run: |
+          VITE_BASE_API=$(aws ssm get-parameter --name /ZoomMate/prod/baseAPI --query 'Parameter.Value' --output text)
+          echo "VITE_BASE_API=$VITE_BASE_API"
+          echo "VITE_BASE_API=$VITE_BASE_API" >> $GITHUB_ENV 
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build 
+        run: npm run build
+
+      - name: Determine build directory
+        id: detect_build_dir
+        run: |
+          if [ -d dist ]; then
+            echo "dir=dist" >> $GITHUB_OUTPUT
+          elif [ -d build ]; then
+            echo "dir=build" >> $GITHUB_OUTPUT
+          else
+            echo "No dist/ or build/ folder found!" >&2
+            exit 1
+          fi
+
+      - name: Upload assets to S3 (long-cache)
+        run: |
+          aws s3 sync "${{ steps.detect_build_dir.outputs.dir }}/" "s3://${{ env.S3_BUCKET }}/" \
+            --delete \
+            --exclude "index.html" --exclude "*.html" \
+            --cache-control "public,max-age=0,immutable" \
+            --acl bucket-owner-full-control \
+            --only-show-errors
+
+      - name: Upload HTML to S3 (no-cache)
+        run: |
+          find "${{ steps.detect_build_dir.outputs.dir }}" -name "*.html" -print0 | \
+            xargs -0 -I {} aws s3 cp "{}" "s3://${{ env.S3_BUCKET }}/" \
+              --cache-control "no-store" \
+              --content-type "text/html; charset=utf-8" \
+              --only-show-errors

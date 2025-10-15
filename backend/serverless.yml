@@ -2,6 +2,14 @@ org: remoteitall
 app: zoommate
 service: ZoomMate
 
+# Exclude unnecessary files from deployment
+package:
+  exclude:
+    - tests/**
+    - README.md
+    - .env
+    - node_modules/**
+
 provider:
   name: aws
   runtime: nodejs22.x
@@ -16,7 +24,7 @@ provider:
     apiGateway: true
   logRetentionInDays: 14
 
-  # 👉 Provider-level env
+  # 👉 Provider-level environment variables
   environment:
     STAGE: ${opt:stage, 'dev'}
     APP_REGION: ${self:provider.region}
@@ -25,14 +33,19 @@ provider:
     GROUP_MEMBERS_TABLE: !Ref GroupMembersTable
     EVENTS_TABLE: !Ref EventsTable
     EVENT_ATTENDEES_TABLE: !Ref EventAttendeesTable
+    API_BASE: !Sub 'https://${ApiGatewayRestApi}.execute-api.${self:provider.region}.amazonaws.com'
 
-    API_BASE: ${cf:${self:service}-${sls:stage}.ServiceEndpoint, 'http://localhost:3000'}
-    # API_BASE: !Sub 'https://${ApiGatewayRestApi}.execute-api.${self:provider.region}.amazonaws.com'
-
-  # 👉 Provider-level IAM:
+  # 👉 Provider-level IAM statements
   iam:
     role:
       statements:
+        - Sid: SSMReadBaseApi
+          Effect: Allow
+          Action:
+            - ssm:GetParameter
+          Resource:
+            - arn:aws:ssm:${aws:region}:${aws:accountId}:parameter/ZoomMate/${sls:stage}/baseAPI
+        # Cognito permissions
         - Effect: Allow
           Action:
             - cognito-idp:SignUp
@@ -42,7 +55,7 @@ provider:
             - cognito-idp:GetUser
             - cognito-idp:DeleteUser
           Resource: "*"
-
+        # DynamoDB permissions
         - Effect: Allow
           Action:
             - dynamodb:PutItem
@@ -63,6 +76,7 @@ provider:
             - !GetAtt EventAttendeesTable.Arn
             - !Sub '${EventAttendeesTable.Arn}/index/*'
 
+# Custom variables
 custom:
   corsConfig: &corsDefaults
     origin: '*'
@@ -73,11 +87,18 @@ custom:
       - X-Api-Key
     allowCredentials: false
     maxAge: 86400
+  stage: ${opt:stage, self:provider.stage}
+  baseApiParamName: /ZoomMate/${self:custom.stage}/baseAPI
+  baseApiValue: !Sub 'https://${ApiGatewayRestApi}.execute-api.${self:provider.region}.amazonaws.com/${self:custom.stage}'
 
 functions:
   # ---------- Auth endpoints ----------
   signup:
     handler: src/auth/signup.handler
+    package:
+      include:
+        - src/auth/signup.js
+        - src/_utils.js
     environment:
       USER_POOL_CLIENT_ID: !Ref UserPoolClientSpa
     events:
@@ -87,6 +108,10 @@ functions:
           cors: *corsDefaults 
   confirmSignup:
     handler: src/auth/confirmSignup.handler
+    package:
+      include:
+        - src/auth/confirmSignup.js
+        - src/_utils.js
     environment:
       USER_POOL_CLIENT_ID: !Ref UserPoolClientSpa
     events:
@@ -96,6 +121,10 @@ functions:
           cors: *corsDefaults
   resendCode:
     handler: src/auth/resendCode.handler
+    package:
+      include:
+        - src/auth/resendCode.js
+        - src/_utils.js
     environment:
       USER_POOL_CLIENT_ID: !Ref UserPoolClientSpa
     events:
@@ -105,6 +134,10 @@ functions:
           cors: *corsDefaults
   signin:
     handler: src/auth/signin.handler
+    package:
+      include:
+        - src/auth/signin.js
+        - src/_utils.js
     environment:
       USER_POOL_CLIENT_ID: !Ref UserPoolClientSpa
     events:
@@ -114,6 +147,10 @@ functions:
           cors: *corsDefaults
   signout:
     handler: src/auth/signout.handler
+    package:
+      include:
+        - src/auth/signout.js
+        - src/_utils.js
     events: 
       - http: 
           method: POST
@@ -121,6 +158,10 @@ functions:
           cors: *corsDefaults
   delete:
     handler: src/auth/deleteSelf.handler
+    package:
+      include:
+        - src/auth/deleteSelf.js
+        - src/_utils.js
     events:
       - http:
           method: POST
@@ -130,6 +171,10 @@ functions:
   # ---------- User endpoints ----------
   searchUsers: 
     handler: src/users/searchUsers.handler
+    package:
+      include:
+        - src/users/searchUsers.js
+        - src/_utils.js
     events:
       - http:
           path: /users/search
@@ -137,6 +182,10 @@ functions:
           cors: *corsDefaults
   getUser: 
     handler: src/users/getUser.handler
+    package:
+      include:
+        - src/users/getUser.js
+        - src/_utils.js
     events:
       - http:
           path: /users/me
@@ -144,6 +193,10 @@ functions:
           cors: *corsDefaults
   getUsers: 
     handler: src/users/getUsers.handler
+    package:
+      include:
+        - src/users/getUsers.js
+        - src/_utils.js
     events:
       - http:
           path: /users
@@ -151,6 +204,10 @@ functions:
           cors: *corsDefaults
   updateUser: 
     handler: src/users/updateUser.handler
+    package:
+      include:
+        - src/users/updateUser.js
+        - src/_utils.js
     events:
       - http:
           path: /users/me
@@ -160,9 +217,19 @@ functions:
   # ---------- Dev-only admin confirm ----------
   confirmAdmin:
     handler: src/auth/confirmAdmin.handler
+    package:
+      include:
+        - src/auth/confirmAdmin.js
+        - src/_utils.js
     environment:
       USER_POOL_ID: !Ref UserPool
     iamRoleStatements:
+      - Sid: SSMReadBaseApi
+        Effect: Allow
+        Action:
+          - ssm:GetParameter
+        Resource:
+          - arn:aws:ssm:${aws:region}:${aws:accountId}:parameter/ZoomMate/${sls:stage}/baseAPI
       - Effect: Allow
         Action: cognito-idp:AdminConfirmSignUp
         Resource: !GetAtt UserPool.Arn
@@ -175,6 +242,10 @@ functions:
   # ---------- Group endpoints ----------
   createGroup:
     handler: src/groups/createGroup.handler
+    package:
+      include:
+        - src/groups/createGroup.js
+        - src/_utils.js
     memorySize: 256
     timeout: 10
     events:
@@ -184,6 +255,10 @@ functions:
           cors: *corsDefaults
   getGroup:
     handler: src/groups/getGroup.handler
+    package:
+      include:
+        - src/groups/getGroup.js
+        - src/_utils.js
     memorySize: 256
     timeout: 10
     events:
@@ -193,6 +268,10 @@ functions:
           cors: *corsDefaults
   updateGroup:
     handler: src/groups/updateGroup.handler
+    package:
+      include:
+        - src/groups/updateGroup.js
+        - src/_utils.js
     memorySize: 256
     timeout: 10
     events:
@@ -202,6 +281,10 @@ functions:
           cors: *corsDefaults
   deleteGroup:
     handler: src/groups/deleteGroup.handler
+    package:
+      include:
+        - src/groups/deleteGroup.js
+        - src/_utils.js
     memorySize: 256
     timeout: 10
     events:
@@ -211,6 +294,10 @@ functions:
           cors: *corsDefaults
   listGroups:
     handler: src/groups/listGroups.handler
+    package:
+      include:
+        - src/groups/listGroups.js
+        - src/_utils.js
     memorySize: 256
     timeout: 10
     events:
@@ -222,6 +309,10 @@ functions:
   # ---------- GroupMember endpoints ----------
   addMember:
     handler: src/groupMembers/addMember.handler
+    package:
+      include:
+        - src/groupMembers/addMember.js
+        - src/_utils.js
     description: Join a group (self)
     memorySize: 256
     timeout: 10
@@ -232,6 +323,10 @@ functions:
           cors: *corsDefaults
   removeMember:
     handler: src/groupMembers/removeMember.handler
+    package:
+      include:
+        - src/groupMembers/removeMember.js
+        - src/_utils.js
     description: Leave a group (self)
     memorySize: 256
     timeout: 10
@@ -242,6 +337,10 @@ functions:
           cors: *corsDefaults
   listMembers:
     handler: src/groupMembers/listMembers.handler
+    package:
+      include:
+        - src/groupMembers/listMembers.js
+        - src/_utils.js
     description: List group members
     memorySize: 256
     timeout: 10
@@ -254,6 +353,10 @@ functions:
   # ---------- Event endpoints ----------
   createEvent:
     handler: src/events/createEvent.handler
+    package:
+      include:
+        - src/events/createEvent.js
+        - src/_utils.js
     description: Create an event in a group
     memorySize: 256
     timeout: 10
@@ -264,6 +367,10 @@ functions:
           cors: *corsDefaults
   getEvent:
     handler: src/events/getEvent.handler
+    package:
+      include:
+        - src/events/getEvent.js
+        - src/_utils.js
     description: Get event details
     memorySize: 256
     timeout: 10
@@ -274,6 +381,10 @@ functions:
           cors: *corsDefaults
   updateEvent:
     handler: src/events/updateEvent.handler
+    package:
+      include:
+        - src/events/updateEvent.js
+        - src/_utils.js
     description: Update an event (creator only)
     memorySize: 256
     timeout: 10
@@ -284,6 +395,10 @@ functions:
           cors: *corsDefaults
   deleteEvent:
     handler: src/events/deleteEvent.handler
+    package:
+      include:
+        - src/events/deleteEvent.js
+        - src/_utils.js
     description: DELETE an event (creator only)
     memorySize: 256
     timeout: 10
@@ -294,6 +409,10 @@ functions:
           cors: *corsDefaults
   listEventsByGroup:
     handler: src/events/listEventsByGroup.handler
+    package:
+      include:
+        - src/events/listEventsByGroup.js
+        - src/_utils.js
     description: List events for a group
     memorySize: 256
     timeout: 10
@@ -306,6 +425,10 @@ functions:
   # ---------- EventAttendee endpoints ----------
   rsvpEvent:
     handler: src/eventAttendees/rsvpEvent.handler
+    package:
+      include:
+        - src/eventAttendees/rsvpEvent.js
+        - src/_utils.js
     description: RSVP to an event (self)
     memorySize: 256
     timeout: 10
@@ -316,6 +439,10 @@ functions:
           cors: *corsDefaults
   unrsvpEvent:
     handler: src/eventAttendees/unrsvpEvent.handler
+    package:
+      include:
+        - src/eventAttendees/unrsvpEvent.js
+        - src/_utils.js
     description: Cancel RSVP (self)
     memorySize: 256
     timeout: 10
@@ -326,6 +453,10 @@ functions:
           cors: *corsDefaults
   listAttendees:
     handler: src/eventAttendees/listAttendees.handler
+    package:
+      include:
+        - src/eventAttendees/listAttendees.js
+        - src/_utils.js
     description: List attendees for an event
     memorySize: 256
     timeout: 10
@@ -338,6 +469,10 @@ functions:
   # ---------- Triggers ----------
   postConfirm:
     handler: src/triggers/postConfirm.handler
+    package:
+      include:
+        - src/triggers/postConfirm.js
+        - src/_utils.js
 
 resources:
   Resources:
@@ -496,8 +631,8 @@ resources:
         AllowedOAuthScopes: [openid, email, profile]
         SupportedIdentityProviders: [COGNITO]
         CallbackURLs:
-          - https://zoommate.ohabimana.dev/auth/callback
-          - http://localhost:5173/auth/callback
+          - https://zoommate.ohabimana.dev/login
+          - http://localhost:5173/login
         LogoutURLs:
           - https://zoommate.ohabimana.dev/logout
           - http://localhost:5173/logout
@@ -517,9 +652,11 @@ resources:
     ApiBaseSSMParam:
       Type: AWS::SSM::Parameter
       Properties:
-        Name: /ZoomMate/baseAPI
+        Name: ${self:custom.baseApiParamName}
         Type: String
-        Value: !Sub 'https://${ApiGatewayRestApi}.execute-api.${AWS::Region}.amazonaws.com'
+        Tier: Standard
+        Value: ${self:custom.baseApiValue}
+
     AppStageSSMParam:
       Type: AWS::SSM::Parameter
       Properties:
