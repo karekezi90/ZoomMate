@@ -230,8 +230,8 @@ const Profile = () => {
 
                         <GroupGrid
                             groups={myGroups}
-                            selectedGroup={selectedGroup}
                             onViewGroup={onViewGroup}
+                            selectedGroup={selectedGroup}
                             emptyMessage="You don't have groups yet."
                         />
                     </Section>

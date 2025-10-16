@@ -99,7 +99,7 @@ const Account = () => {
       </div>
 
       {updateUserStatus === 'succeeded' && (
-        <AlertMessage message='Your changes have been saved.' type='succesps'/>
+        <AlertMessage message='Your changes have been saved.' type='success'/>
       )}
       <AlertMessage message={errorMessage} />
 
@@ -286,8 +286,8 @@ const Account = () => {
               />
               <TextInput 
                 id='website' 
-                name='Website' 
-                label='website' 
+                name='website' 
+                label='Website' 
                 onChange={onChange} 
                 value={form.website} 
                 autoComplete='website' 

@@ -6,10 +6,10 @@ const GroupGrid = memo(({ groups, selectedGroup, onViewGroup, emptyMessage }) =>
     {(groups || []).length
       ? (groups || []).map((g) => (
           <GroupCard
-            key={g.groupId}
             group={g}
-            selected={selectedGroup?.groupId === g.groupId}
+            key={g.groupId}
             onClick={onViewGroup}
+            selected={selectedGroup?.groupId === g.groupId}
           />
         ))
       : (emptyMessage ? <p className="text-sm text-gray-500 dark:text-gray-400">{emptyMessage}</p> : null)

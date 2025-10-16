@@ -9,7 +9,11 @@ const GroupCard = memo(({ group, selected, onClick }) => (
     <div className="flex items-start justify-between gap-3">
       <div>
         <h3 className="text-base font-semibold">{group.name}</h3>
-        <p className="text-sm text-gray-600 dark:text-gray-400">{group.description}</p>
+        <p className="text-sm text-gray-600 dark:text-gray-400">
+          {group.description.length > 100
+            ? `${group.description.slice(0, 50)}...`
+            : group.description}
+        </p>
       </div>
     </div>
   </div>
