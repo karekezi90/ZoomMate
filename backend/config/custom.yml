@@ -1,0 +1,13 @@
+custom:
+  corsConfig: &corsDefaults
+    origin: '*'
+    headers:
+      - Content-Type
+      - X-Amz-Date
+      - Authorization
+      - X-Api-Key
+    allowCredentials: false
+    maxAge: 86400
+  stage: ${opt:stage, self:provider.stage}
+  baseApiParamName: /ZoomMate/${self:custom.stage}/baseAPI
+  baseApiValue: !Sub 'https://${ApiGatewayRestApi}.execute-api.${self:provider.region}.amazonaws.com/${self:custom.stage}'

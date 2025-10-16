@@ -1,0 +1,40 @@
+iam:
+  role:
+    statements:
+      - Sid: SSMReadBaseApi
+        Effect: Allow
+        Action:
+          - ssm:GetParameter
+        Resource:
+          - arn:aws:ssm:${aws:region}:${aws:accountId}:parameter/ZoomMate/${sls:stage}/baseAPI
+      # Cognito permissions
+      - Effect: Allow
+        Action:
+          - cognito-idp:SignUp
+          - cognito-idp:ConfirmSignUp
+          - cognito-idp:ResendConfirmationCode
+          - cognito-idp:InitiateAuth
+          - cognito-idp:GetUser
+          - cognito-idp:DeleteUser
+        Resource: "*"
+      # DynamoDB permissions
+      - Effect: Allow
+        Action:
+          - dynamodb:PutItem
+          - dynamodb:GetItem
+          - dynamodb:Query
+          - dynamodb:Scan
+          - dynamodb:UpdateItem
+          - dynamodb:DeleteItem
+          - dynamodb:BatchWriteItem
+        Resource: 
+          - !GetAtt UsersTable.Arn
+          - !Sub '${UsersTable.Arn}/index/*'
+          - !GetAtt GroupsTable.Arn
+          - !Sub '${GroupsTable.Arn}/index/*'
+          - !GetAtt GroupMembersTable.Arn
+          - !Sub '${GroupMembersTable.Arn}/index/*'
+          - !GetAtt EventsTable.Arn
+          - !Sub '${EventsTable.Arn}/index/*'
+          - !GetAtt EventAttendeesTable.Arn
+          - !Sub '${EventAttendeesTable.Arn}/index/*'

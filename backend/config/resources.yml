@@ -1,0 +1,214 @@
+Resources:
+  # ===== DynamoDB Users table =====
+  UsersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ${self:service}-${sls:stage}-users
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S 
+        - AttributeName: email
+          AttributeType: S 
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: EmailIndex
+          Projection: { ProjectionType: ALL }
+          KeySchema:
+            - AttributeName: email
+              KeyType: HASH
+
+  # ===== DynamoDB Groups table =====
+  GroupsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ${self:service}-${sls:stage}-groups
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: groupId
+          AttributeType: S
+        - AttributeName: ownerId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: groupId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: ownerId-index
+          KeySchema:
+            - AttributeName: ownerId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+  
+  # ===== DynamoDB GroupMembers table =====
+  GroupMembersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ${self:service}-${sls:stage}-group-members
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: groupId
+          AttributeType: S
+        - AttributeName: userId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: groupId
+          KeyType: HASH
+        - AttributeName: userId
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: userId-index
+          KeySchema:
+            - AttributeName: userId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
+  # ========== DynamoDB Events table ==========
+  EventsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ${self:service}-${sls:stage}-events
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: eventId
+          AttributeType: S
+        - AttributeName: groupId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: eventId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        # Used by listEventsByGroup handler
+        - IndexName: groupId-index
+          KeySchema:
+            - AttributeName: groupId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+  
+  # ========== DynamoDB Event Attendees table ==========
+  EventAttendeesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: ${self:service}-${sls:stage}-events-attendees
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: eventId
+          AttributeType: S
+        - AttributeName: userId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: eventId
+          KeyType: HASH
+        - AttributeName: userId
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        # List all events a user has RSVP’d to (optional, handy for "My Events")
+        - IndexName: userId-index
+          KeySchema:
+            - AttributeName: userId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
+  # ===== Cognito User Pool =====
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: ${self:service}-${sls:stage}-users
+      AutoVerifiedAttributes: [email]
+      UsernameAttributes: [email]
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireLowercase: true
+          RequireUppercase: true
+          RequireNumbers: true
+          RequireSymbols: false
+      LambdaConfig:
+        PostConfirmation: !GetAtt PostConfirmLambdaFunction.Arn
+
+  # allow Cognito to call the postConfirm Lambda
+  PostConfirmPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !GetAtt PostConfirmLambdaFunction.Arn 
+      Principal: cognito-idp.amazonaws.com
+      SourceArn: !GetAtt UserPool.Arn
+  
+  # ===== SPA App Client =====
+  UserPoolClientSpa:
+    Type: AWS::Cognito::UserPoolClient
+    Properties: 
+      UserPoolId: !Ref UserPool
+      ClientName: ${self:service}-${sls:stage}-spa
+      GenerateSecret: false                      
+      PreventUserExistenceErrors: ENABLED
+      # OAuth (for browser PKCE flows if you use Hosted UI)
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows: [code]
+      AllowedOAuthScopes: [openid, email, profile]
+      SupportedIdentityProviders: [COGNITO]
+      CallbackURLs:
+        - https://zoommate.ohabimana.dev/login
+        - http://localhost:5173/login
+      LogoutURLs:
+        - https://zoommate.ohabimana.dev/logout
+        - http://localhost:5173/logout
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      AccessTokenValidity: 60
+      IdTokenValidity: 60
+      RefreshTokenValidity: 30
+      TokenValidityUnits:
+        AccessToken: minutes
+        IdToken: minutes
+        RefreshToken: days
+
+  # ===== Systems Manager Params =====
+  ApiBaseSSMParam:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: ${self:custom.baseApiParamName}
+      Type: String
+      Tier: Standard
+      Value: ${self:custom.baseApiValue}  
+
+  AppStageSSMParam:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /ZoomMate/stage
+      Type: String
+      Value: ${opt:stage, 'dev'}
+  DynamoDBUsersTable:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /ZoomMate/usersTable
+      Type: String
+      Value: !Sub "${self:service}-${sls:stage}-users"
+
+  # ===== Ensure API Gateway error responses also include CORS headers ======
+  GatewayResponseDefault4XX:
+    Type: AWS::ApiGateway::GatewayResponse
+    Properties:
+      RestApiId: { Ref: ApiGatewayRestApi }
+      ResponseType: DEFAULT_4XX
+      ResponseParameters:
+        gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+        gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+        gatewayresponse.header.Access-Control-Allow-Methods: "'GET,POST,PUT,PATCH,DELETE,OPTIONS'"
+  GatewayResponseDefault5XX:
+    Type: AWS::ApiGateway::GatewayResponse
+    Properties:
+      RestApiId: { Ref: ApiGatewayRestApi }
+      ResponseType: DEFAULT_5XX
+      ResponseParameters:
+        gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+        gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+        gatewayresponse.header.Access-Control-Allow-Methods: "'GET,POST,PUT,PATCH,DELETE,OPTIONS'"

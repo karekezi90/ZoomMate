@@ -10,7 +10,8 @@ import {
     json, 
     cognito,
     parseBody, 
-    toHttpError 
+    toHttpError,
+    purgeUserGroupsAndMemberships
 } from '../_utils.js'
 
 const ddb = new DynamoDBClient({})
@@ -40,6 +41,9 @@ export const handler = async (event) => {
         if (!userSub) {
             return json(401, { error: 'Unable to resolve user id (sub) from token' })
         }
+
+        // Purge all groups owned by the user and all memberships where user is a member
+        await purgeUserGroupsAndMemberships(userSub)
 
         // Delete the item from DynamoDB where PK is userId = sub
         await ddb.send(new DeleteItemCommand({

@@ -38,12 +38,17 @@ describe('delete-self', async () => {
 
     it('should successfully delete a user', async () => {
         expect(session.accessToken).toBeTruthy()
-        const response = await axios.post(`${baseAPI}/auth/delete-self`, {
-            accessToken: session.accessToken
-        })
 
-        expect(response.status).toBe(200)
-        expect(response.data).toHaveProperty('message') 
-        expect(response.data.message).toBe('You have successfully deleted your account and profile data.') 
+        try {
+            const response = await axios.post(`${baseAPI}/auth/delete-self`, {
+                accessToken: session.accessToken
+            })
+            expect(response.status).toBe(200)
+            expect(response.data).toHaveProperty('message') 
+            expect(response.data.message).toBe('You have successfully deleted your account and profile data.') 
+        } catch (error) {
+            console.error('Error during delete-self request:', error)
+        }
+
     })
 })

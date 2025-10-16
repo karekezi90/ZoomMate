@@ -1,0 +1,9 @@
+environment: 
+  STAGE: ${opt:stage, 'dev'}
+  APP_REGION: ${self:provider.region}
+  USERS_TABLE: !Ref UsersTable
+  GROUPS_TABLE: !Ref GroupsTable
+  GROUP_MEMBERS_TABLE: !Ref GroupMembersTable
+  EVENTS_TABLE: !Ref EventsTable
+  EVENT_ATTENDEES_TABLE: !Ref EventAttendeesTable
+  API_BASE: !Sub 'https://${ApiGatewayRestApi}.execute-api.${self:provider.region}.amazonaws.com'

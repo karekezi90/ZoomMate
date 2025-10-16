@@ -1,5 +1,5 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
-import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb'
+import { DynamoDBDocumentClient, QueryCommand, BatchWriteCommand } from '@aws-sdk/lib-dynamodb'
 import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm'
 import { CognitoIdentityProviderClient, GetUserCommand } from '@aws-sdk/client-cognito-identity-provider'
 
@@ -98,9 +98,9 @@ export const getUserSubFromAuth = async (event) => {
 }
 
 export const getUserSub = async (accessToken) => {
-    const res = await cognito.send(new GetUserCommand({ AccessToken: accessToken }))
-    const subAttr = res.UserAttributes?.find(a => a.Name === 'sub')
-    return subAttr?.Value || res.Username
+  const res = await cognito.send(new GetUserCommand({ AccessToken: accessToken }))
+  const subAttr = res.UserAttributes?.find(a => a.Name === 'sub')
+  return subAttr?.Value || res.Username
 }
 
 export const getBaseAPI = async () => {
@@ -172,3 +172,139 @@ export const decodeToken = (t) => {
   }
 }
 export const encodeToken = (k) => (k ? Buffer.from(JSON.stringify(k), 'utf8').toString('base64') : undefined)
+
+
+// ------------------ PURGE USER GROUPS & MEMBERSHIPS ------------------
+// When a user is deleted, we need to also delete:
+//  - All groups they own
+//  - All memberships in those groups
+//  - All memberships where they are a member (even in groups they don't own)
+const GROUPS_TABLE = process.env.GROUPS_TABLE
+const GROUP_MEMBERS_TABLE = process.env.GROUP_MEMBERS_TABLE
+const GROUPS_OWNER_GSI = process.env.GROUPS_OWNER_GSI || "ownerId-index" // GSI on ownerId
+const MEMBERS_USER_GSI = process.env.MEMBERS_USER_GSI || "userId-index"   // GSI on userId
+
+const chunk = (arr, size) => {
+  const out = []
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size))
+  return out
+}
+
+const queryAll = async (params) => {
+  let items = []
+  let ExclusiveStartKey
+  do {
+    const res = await ddb.send(new QueryCommand({ ...params, ExclusiveStartKey }))
+    items = items.concat(res.Items || [])
+    ExclusiveStartKey = res.LastEvaluatedKey
+  } while (ExclusiveStartKey)
+  return items
+}
+
+const dedupeDeleteRequests = (requestItemsByTable) => {
+  const deduped = {}
+  for (const [table, ops] of Object.entries(requestItemsByTable)) {
+    const seen = new Set()
+    deduped[table] = []
+    for (const op of ops) {
+      const keyJson = JSON.stringify(op.DeleteRequest.Key) 
+      if (!seen.has(keyJson)) {
+        seen.add(keyJson)
+        deduped[table].push(op)
+      }
+    }
+  }
+  return deduped
+}
+
+const batchWriteAll = async (requestItemsByTable) => {
+  const requestItems = dedupeDeleteRequests(requestItemsByTable);
+
+  // Flatten to (table, op) pairs, then chunk into 25 total ops per call
+  const entries = Object.entries(requestItems).flatMap(([table, ops]) =>
+    ops.map(op => ({ table, op }))
+  )
+  const batches = chunk(entries, 25)
+
+  for (const batch of batches) {
+    // Rebuild RequestItems shape for this batch
+    const RequestItems = batch.reduce((acc, { table, op }) => {
+      (acc[table] ||= []).push(op)
+      return acc
+    }, {})
+
+    let UnprocessedItems = RequestItems
+    let attempt = 0
+    while (Object.keys(UnprocessedItems).length) {
+      const res = await ddb.send(new BatchWriteCommand({ RequestItems: UnprocessedItems }))
+      UnprocessedItems = res.UnprocessedItems || {}
+      if (Object.keys(UnprocessedItems).length) {
+        attempt += 1
+        await new Promise(r => setTimeout(r, Math.min(1000 * 2 ** attempt, 8000)))
+      }
+    }
+  }
+}
+
+/**
+ * Purge:
+ *  - All groups owned by userId (and ALL memberships in those groups)
+ *  - All memberships where userId is a member
+ */
+export const purgeUserGroupsAndMemberships = async (userId) => {
+  // 1) Groups owned by the user
+  const ownedGroups = await queryAll({
+    TableName: GROUPS_TABLE,
+    IndexName: GROUPS_OWNER_GSI,
+    KeyConditionExpression: "#ownerId = :ownerId",
+    ExpressionAttributeNames: { "#ownerId": "ownerId" },
+    ExpressionAttributeValues: { ":ownerId": userId }
+  })
+
+  // 1a) All memberships for owned groups (in parallel)
+  const ownedGroupIds = ownedGroups.map(g => g.groupId)
+  const ownedGroupMembersArrays = await Promise.all(
+    ownedGroupIds.map(groupId =>
+      queryAll({
+        TableName: GROUP_MEMBERS_TABLE,
+        KeyConditionExpression: "#groupId = :gid",
+        ExpressionAttributeNames: { "#groupId": "groupId" },
+        ExpressionAttributeValues: { ":gid": groupId }
+      }).then(items => items.map(m => ({ groupId, userId: m.userId })))
+    )
+  )
+  const membershipDeletesForOwned = ownedGroupMembersArrays.flat().map(k => ({
+    DeleteRequest: { Key: k }
+  }))
+
+  // 1b) Delete the owned group items themselves
+  const groupDeletes = ownedGroups.map(g => ({
+    DeleteRequest: { Key: { groupId: g.groupId } }
+  }))
+
+  // 2) Memberships where the user is a member anywhere (may overlap 1a)
+  const myMemberships = await queryAll({
+    TableName: GROUP_MEMBERS_TABLE,
+    IndexName: MEMBERS_USER_GSI,
+    KeyConditionExpression: "#userId = :uid",
+    ExpressionAttributeNames: { "#userId": "userId" },
+    ExpressionAttributeValues: { ":uid": userId }
+  })
+  const myMembershipDeletes = myMemberships.map(m => ({
+    DeleteRequest: { Key: { groupId: m.groupId, userId: m.userId } }
+  }))
+
+  // Combine → de-dupe → batch
+  const requestItems = {
+    [GROUP_MEMBERS_TABLE]: [].concat(membershipDeletesForOwned, myMembershipDeletes),
+    [GROUPS_TABLE]: groupDeletes
+  }
+
+  await batchWriteAll(requestItems)
+
+  return {
+    ownedGroupsDeleted: groupDeletes.length,
+    membershipsDeletedFromOwnedGroups: membershipDeletesForOwned.length,
+    membershipsDeletedAsMember: myMembershipDeletes.length
+  }
+}

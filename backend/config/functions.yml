@@ -1,0 +1,382 @@
+functions:
+  # ---------- Auth endpoints ----------
+  signup:
+    handler: src/auth/signup.handler
+    package:
+      include:
+        - src/auth/signup.js
+        - src/_utils.js
+    environment:
+      USER_POOL_CLIENT_ID: !Ref UserPoolClientSpa
+    events:
+      - http: 
+          method: POST
+          path: /auth/signup
+          cors: ${self:custom.corsConfig} 
+  confirmSignup:
+    handler: src/auth/confirmSignup.handler
+    package:
+      include:
+        - src/auth/confirmSignup.js
+        - src/_utils.js
+    environment:
+      USER_POOL_CLIENT_ID: !Ref UserPoolClientSpa
+    events:
+      - http: 
+          method: POST
+          path: /auth/confirm
+          cors: ${self:custom.corsConfig}
+  resendCode:
+    handler: src/auth/resendCode.handler
+    package:
+      include:
+        - src/auth/resendCode.js
+        - src/_utils.js
+    environment:
+      USER_POOL_CLIENT_ID: !Ref UserPoolClientSpa
+    events:
+      - http: 
+          method: POST
+          path: /auth/resend
+          cors: ${self:custom.corsConfig}
+  signin:
+    handler: src/auth/signin.handler
+    package:
+      include:
+        - src/auth/signin.js
+        - src/_utils.js
+    environment:
+      USER_POOL_CLIENT_ID: !Ref UserPoolClientSpa
+    events:
+      - http: 
+          method: POST
+          path: /auth/signin
+          cors: ${self:custom.corsConfig}
+  signout:
+    handler: src/auth/signout.handler
+    package:
+      include:
+        - src/auth/signout.js
+        - src/_utils.js
+    events: 
+      - http: 
+          method: POST
+          path: /auth/signout
+          cors: ${self:custom.corsConfig}
+  delete:
+    handler: src/auth/deleteSelf.handler
+    package:
+      include:
+        - src/auth/deleteSelf.js
+        - src/_utils.js
+    events:
+      - http:
+          method: POST
+          path: /auth/delete-self
+          cors: ${self:custom.corsConfig}
+
+  # ---------- User endpoints ----------
+  searchUsers: 
+    handler: src/users/searchUsers.handler
+    package:
+      include:
+        - src/users/searchUsers.js
+        - src/_utils.js
+    events:
+      - http:
+          path: /users/search
+          method: POST
+          cors: ${self:custom.corsConfig}
+  getUser: 
+    handler: src/users/getUser.handler
+    package:
+      include:
+        - src/users/getUser.js
+        - src/_utils.js
+    events:
+      - http:
+          path: /users/me
+          method: GET
+          cors: ${self:custom.corsConfig}
+  getUsers: 
+    handler: src/users/getUsers.handler
+    package:
+      include:
+        - src/users/getUsers.js
+        - src/_utils.js
+    events:
+      - http:
+          path: /users
+          method: GET
+          cors: ${self:custom.corsConfig}
+  updateUser: 
+    handler: src/users/updateUser.handler
+    package:
+      include:
+        - src/users/updateUser.js
+        - src/_utils.js
+    events:
+      - http:
+          path: /users/me
+          method: PUT
+          cors: ${self:custom.corsConfig}
+
+  # ---------- Dev-only admin confirm ----------
+  confirmAdmin:
+    handler: src/auth/confirmAdmin.handler
+    package:
+      include:
+        - src/auth/confirmAdmin.js
+        - src/_utils.js
+    environment:
+      USER_POOL_ID: !Ref UserPool
+    iamRoleStatements:
+      - Sid: SSMReadBaseApi
+        Effect: Allow
+        Action:
+          - ssm:GetParameter
+        Resource:
+          - arn:aws:ssm:${aws:region}:${aws:accountId}:parameter/ZoomMate/${sls:stage}/baseAPI
+      - Effect: Allow
+        Action: cognito-idp:AdminConfirmSignUp
+        Resource: !GetAtt UserPool.Arn
+    events:
+      - http: 
+          method: POST
+          path: /auth/confirm-admin
+          cors: ${self:custom.corsConfig}
+
+  # ---------- Group endpoints ----------
+  createGroup:
+    handler: src/groups/createGroup.handler
+    package:
+      include:
+        - src/groups/createGroup.js
+        - src/_utils.js
+    memorySize: 256
+    timeout: 10
+    events:
+      - http:
+          path: groups
+          method: POST
+          cors: ${self:custom.corsConfig}
+  getGroup:
+    handler: src/groups/getGroup.handler
+    package:
+      include:
+        - src/groups/getGroup.js
+        - src/_utils.js
+    memorySize: 256
+    timeout: 10
+    events:
+      - http:
+          path: groups/{groupId}
+          method: GET
+          cors: ${self:custom.corsConfig}
+  updateGroup:
+    handler: src/groups/updateGroup.handler
+    package:
+      include:
+        - src/groups/updateGroup.js
+        - src/_utils.js
+    memorySize: 256
+    timeout: 10
+    events:
+      - http:
+          path: groups/{groupId}
+          method: PUT
+          cors: ${self:custom.corsConfig}
+  deleteGroup:
+    handler: src/groups/deleteGroup.handler
+    package:
+      include:
+        - src/groups/deleteGroup.js
+        - src/_utils.js
+    memorySize: 256
+    timeout: 10
+    events:
+      - http:
+          path: groups/{groupId}
+          method: DELETE
+          cors: ${self:custom.corsConfig}
+  listGroups:
+    handler: src/groups/listGroups.handler
+    package:
+      include:
+        - src/groups/listGroups.js
+        - src/_utils.js
+    memorySize: 256
+    timeout: 10
+    events:
+      - http:
+          path: groups
+          method: GET
+          cors: ${self:custom.corsConfig}
+
+  # ---------- GroupMember endpoints ----------
+  addMember:
+    handler: src/groupMembers/addMember.handler
+    package:
+      include:
+        - src/groupMembers/addMember.js
+        - src/_utils.js
+    description: Join a group (self)
+    memorySize: 256
+    timeout: 10
+    events:
+      - http:
+          path: groups/{groupId}/members
+          method: POST
+          cors: ${self:custom.corsConfig}
+  removeMember:
+    handler: src/groupMembers/removeMember.handler
+    package:
+      include:
+        - src/groupMembers/removeMember.js
+        - src/_utils.js
+    description: Leave a group (self)
+    memorySize: 256
+    timeout: 10
+    events:
+      - http:
+          path: groups/{groupId}/members/{userId}
+          method: DELETE
+          cors: ${self:custom.corsConfig}
+  listMembers:
+    handler: src/groupMembers/listMembers.handler
+    package:
+      include:
+        - src/groupMembers/listMembers.js
+        - src/_utils.js
+    description: List group members
+    memorySize: 256
+    timeout: 10
+    events:
+      - http:
+          path: groups/{groupId}/members
+          method: GET
+          cors: ${self:custom.corsConfig}
+          
+  # ---------- Event endpoints ----------
+  createEvent:
+    handler: src/events/createEvent.handler
+    package:
+      include:
+        - src/events/createEvent.js
+        - src/_utils.js
+    description: Create an event in a group
+    memorySize: 256
+    timeout: 10
+    events:
+      - http:
+          path: groups/{groupId}/events
+          method: POST
+          cors: ${self:custom.corsConfig}
+  getEvent:
+    handler: src/events/getEvent.handler
+    package:
+      include:
+        - src/events/getEvent.js
+        - src/_utils.js
+    description: Get event details
+    memorySize: 256
+    timeout: 10
+    events:
+      - http:
+          path: events/{eventId}
+          method: GET
+          cors: ${self:custom.corsConfig}
+  updateEvent:
+    handler: src/events/updateEvent.handler
+    package:
+      include:
+        - src/events/updateEvent.js
+        - src/_utils.js
+    description: Update an event (creator only)
+    memorySize: 256
+    timeout: 10
+    events:
+      - http:
+          path: events/{eventId}
+          method: PUT
+          cors: ${self:custom.corsConfig}
+  deleteEvent:
+    handler: src/events/deleteEvent.handler
+    package:
+      include:
+        - src/events/deleteEvent.js
+        - src/_utils.js
+    description: DELETE an event (creator only)
+    memorySize: 256
+    timeout: 10
+    events:
+      - http:
+          path: events/{eventId}
+          method: DELETE
+          cors: ${self:custom.corsConfig}
+  listEventsByGroup:
+    handler: src/events/listEventsByGroup.handler
+    package:
+      include:
+        - src/events/listEventsByGroup.js
+        - src/_utils.js
+    description: List events for a group
+    memorySize: 256
+    timeout: 10
+    events:
+      - http:
+          path: groups/{groupId}/events
+          method: GET
+          cors: ${self:custom.corsConfig}
+
+  # ---------- EventAttendee endpoints ----------
+  rsvpEvent:
+    handler: src/eventAttendees/rsvpEvent.handler
+    package:
+      include:
+        - src/eventAttendees/rsvpEvent.js
+        - src/_utils.js
+    description: RSVP to an event (self)
+    memorySize: 256
+    timeout: 10
+    events:
+      - http:
+          path: events/{eventId}/attendees
+          method: POST
+          cors: ${self:custom.corsConfig}
+  unrsvpEvent:
+    handler: src/eventAttendees/unrsvpEvent.handler
+    package:
+      include:
+        - src/eventAttendees/unrsvpEvent.js
+        - src/_utils.js
+    description: Cancel RSVP (self)
+    memorySize: 256
+    timeout: 10
+    events:
+      - http:
+          path: events/{eventId}/attendees/me
+          method: DELETE
+          cors: ${self:custom.corsConfig}
+  listAttendees:
+    handler: src/eventAttendees/listAttendees.handler
+    package:
+      include:
+        - src/eventAttendees/listAttendees.js
+        - src/_utils.js
+    description: List attendees for an event
+    memorySize: 256
+    timeout: 10
+    events:
+      - http:
+          path: events/{eventId}/attendees
+          method: GET
+          cors: ${self:custom.corsConfig}
+
+  # ---------- Triggers ----------
+  postConfirm:
+    handler: src/triggers/postConfirm.handler
+    package:
+      include:
+        - src/triggers/postConfirm.js
+        - src/_utils.js
