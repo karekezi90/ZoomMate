@@ -180,19 +180,6 @@ Resources:
       Tier: Standard
       Value: ${self:custom.baseApiValue}  
 
-  AppStageSSMParam:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: /ZoomMate/stage
-      Type: String
-      Value: ${opt:stage, 'dev'}
-  DynamoDBUsersTable:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: /ZoomMate/usersTable
-      Type: String
-      Value: !Sub "${self:service}-${sls:stage}-users"
-
   # ===== Ensure API Gateway error responses also include CORS headers ======
   GatewayResponseDefault4XX:
     Type: AWS::ApiGateway::GatewayResponse

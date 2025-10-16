@@ -4,7 +4,7 @@ import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm'
 import { CognitoIdentityProviderClient, GetUserCommand } from '@aws-sdk/client-cognito-identity-provider'
 
 export const cognito = new CognitoIdentityProviderClient({
-  region: 'ap-southeast-2', 
+  region: process.env.APP_REGION || 'ap-southeast-2', 
 })
 
 const ddb = new DynamoDBClient({})
@@ -104,27 +104,9 @@ export const getUserSub = async (accessToken) => {
 }
 
 export const getBaseAPI = async () => {
-  const region = 'ap-southeast-2'
+  const region = process.env.APP_REGION || 'ap-southeast-2'
   const ssm = new SSMClient({ region })
   const cmd = new GetParameterCommand({ Name: '/ZoomMate/dev/baseAPI' })
-  const { Parameter } = await ssm.send(cmd)
-  return Parameter.Value
-}
-
-console.log('getBaseAPI function defined', await getBaseAPI())
-
-export const getStage = async () => {
-  const region = 'ap-southeast-2'
-  const ssm = new SSMClient({ region })
-  const cmd = new GetParameterCommand({ Name: '/ZoomMate/stage' })
-  const { Parameter } = await ssm.send(cmd)
-  return Parameter.Value
-}
-
-export const getUsersTableName = async () => {
-  const region = 'ap-southeast-2'
-  const ssm = new SSMClient({ region })
-  const cmd = new GetParameterCommand({ Name: '/ZoomMate/usersTable' })
   const { Parameter } = await ssm.send(cmd)
   return Parameter.Value
 }

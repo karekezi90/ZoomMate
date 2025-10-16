@@ -1,8 +1,5 @@
 import axios from 'axios'
-import { getBaseAPI, getStage } from '../../_utils.js'
-
-const stage = await getStage()
-export const isProd = stage === 'prod' || stage === 'production' 
+import { getBaseAPI } from '../../_utils.js'
 
 export const baseAPI = await getBaseAPI()
 

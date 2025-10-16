@@ -2,7 +2,6 @@ import axios from 'axios'
 import { describe, it, expect } from 'vitest'
 
 import { 
-    isProd,
     baseAPI,
     session,
     correctPayload, 
@@ -11,11 +10,6 @@ import {
     payloadWithInvalidEmail,
     payloadWithInvalidPassword,
 } from './testingData.js'
-
-if (isProd) {
-    console.warn('⚠️ Tests are disabled in production stage.')
-    process.exit(0)
-}
 
 describe('singin', () => {
     it('should successfully sign in a user', async () => {

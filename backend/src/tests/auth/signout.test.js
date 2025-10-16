@@ -1,16 +1,10 @@
 import axios from 'axios'
 import { describe, it, expect } from 'vitest'
 import { 
-    isProd,
     baseAPI,
     session,
     correctPayload
 } from './testingData.js'
-
-if (isProd) {
-    console.warn('⚠️ Tests are disabled in production stage.')
-    process.exit(0)
-}
 
 describe('signout', () => {
     it('should fail if access token is missing', async () => {
